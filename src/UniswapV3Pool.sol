@@ -70,7 +70,15 @@ contract UniswapV3Pool{
             revert InsufficientInputAmount();
     }
 
-    event Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
+    event Mint(
+        address sender,
+        address indexed owner,
+        int24 indexed lowerTick,
+        int24 indexed upperTick,
+        uint128 amount,
+        uint256 amount0,
+        uint256 amount1
+        );
 
     function balance0() internal returns (uint256 balance) {
         balance = IERC20(token0).balanceOf(address(this));
