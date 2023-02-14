@@ -1,9 +1,22 @@
 pragma solidity ^0.8.17;
 
+import "./interfaces/IERC20.sol";
+import "./interfaces/IUniswapV3MintCallback.sol";
+import "./interfaces/IUniswapV3SwapCallback.sol";
+
+import "./lib/Math.sol";
+import "./lib/Position.sol";
+import "./lib/SwapMath.sol";
+import "./lib/Tick.sol";
+import "./lib/TickBitmap.sol";
+import "./lib/TickMath.sol";
+
 contract UniswapV3Pool{
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
     using Tick for mapping(int24 => Tick.Info);
+    using TickBitmap for mapping(int16 => uint256);
+
 
     int24 internal constant MIN_TICK = -887272;
     int24 internal constant MAX_TICK = -MIN_TICK;
@@ -19,6 +32,22 @@ contract UniswapV3Pool{
     // Current tick
     int24 tick;
     }
+
+    struct SwapState {
+        uint256 amountSpecifiedRemaining;
+        uint256 amountCalculated;
+        uint160 sqrtPriceX96;
+        int24 tick;
+        uint256 feeGrowthGlobalX128;
+        uint128 liquidity;
+
+    struct StepState {
+        uint160 sqrtPriceX96;
+        int24 nextTick;
+        uint160 sqrtPriceNextX96;
+        uint256 amountIn;
+        uint256 amountOut;
+    }
     
     Slot0 public slot0;
 
@@ -27,6 +56,7 @@ contract UniswapV3Pool{
 
     // Ticks info
     mapping(int24 => Tick.Info) public ticks;
+    mapping(int16 => uint256) public tickBitmap;
     // Positions info
     mapping(bytes32 => Position.Info) public positions;
 
@@ -93,6 +123,17 @@ contract UniswapV3Pool{
             revert InsufficientInputAmount();
         if (amount1 > 0 && balance1Before + amount1 > balance1())
             revert InsufficientInputAmount();
+
+        bool flippedLower = ticks.update(lowerTick, amount);
+        bool flippedUpper = ticks.update(upperTick, amount);
+
+        if (flippedLower) {
+            tickBitmap.flipTick(lowerTick, 1);
+        }
+
+        if (flippedUpper) {
+            tickBitmap.flipTick(upperTick, 1);
+        }
     }
 
     event Mint(
@@ -117,6 +158,15 @@ contract UniswapV3Pool{
         public
         returns (int256 amount0, int256 amount1)
         {
+        Slot0 memory slot0_ = slot0;
+
+        SwapState memory state = SwapState({
+            amountSpecifiedRemaining: amountSpecified,
+            amountCalculated: 0,
+            sqrtPriceX96: slot0_.sqrtPriceX96,
+            tick: slot0_.tick
+        });
+
         int24 nextTick = 85184;
         uint160 nextPrice = 5604469350942327889444743441197;
 
