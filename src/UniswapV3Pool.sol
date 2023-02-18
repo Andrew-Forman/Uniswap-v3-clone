@@ -51,6 +51,20 @@ contract UniswapV3Pool{
     
     Slot0 public slot0;
 
+    Slot0 memory slot0_ = slot0;
+
+    amount0 = Math.calcAmount0Delta(
+        slot0_.sqrtPriceX96,
+        TickMath.getSqrtRatioAtTick(upperTick),
+        amount
+    );
+
+    amount1 = Math.calcAmount1Delta(
+        slot0_.sqrtPriceX96,
+        TickMath.getSqrtRatioAtTick(lowerTick),
+        amount
+    );
+
     // Amount of liquidity, L.
     uint128 public liquidity;
 
@@ -154,10 +168,13 @@ contract UniswapV3Pool{
         balance = IERC20(token1).balanceOf(address(this));
     }
 
-    function swap (address recipient, bytes calldata data) 
-        public
-        returns (int256 amount0, int256 amount1)
-        {
+    function swap (
+        address recipient,
+        bool zeroForOne,  // controls swap direction
+        uint156 amountSpecified,
+        bytes calldata data
+    )  public returns (int256 amount0, int256 amount1) {
+
         Slot0 memory slot0_ = slot0;
 
         SwapState memory state = SwapState({
@@ -166,6 +183,34 @@ contract UniswapV3Pool{
             sqrtPriceX96: slot0_.sqrtPriceX96,
             tick: slot0_.tick
         });
+        
+        //really good bit of code
+        while (state.amountSpecifiedRemaing > 0) {
+            StepState memory step;
+
+            step.sqrtPriceStartX96 = state.sqrtPriceX96;
+
+            (step.nextTick, ) = tickBitmap.nextInitializedTickWithinOneWord(
+                state.tick,
+                1,
+                zeroForOne
+            );
+
+            step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(step.nextTick);
+
+            (state.sqrtPriceX96, step.amountIn, step.amountOut) = SwapMath
+                .computeSwapStep(
+                    state.sqrtPriceX96,
+                    step.sqrtPirceNextX96,
+                    liquidity,
+                    state.amountSpecifiedRemaining
+                );
+
+            state.amountSpecifiedRemaining -= step.amountIn;
+            state.amountCalculated += step.amountOut;
+            state.tick = TickMath.getTickAtSqrtRatio(state.sqrtPriceX96);
+        }
+    }
 
         int24 nextTick = 85184;
         uint160 nextPrice = 5604469350942327889444743441197;

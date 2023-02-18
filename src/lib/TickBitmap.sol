@@ -1,4 +1,5 @@
-
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.17;
 
     function position(int24 tick) private pure returns (int16 wordPos, uint8 bitPos) {
         wordPos = int16(tick >> 8);
@@ -10,7 +11,7 @@
         int24 tick,
         int24 tickSpacing
     ) internal {
-        require(tick % tickSpacing == 0);
+        require(tick % tickSpacing == 0); // ensure that the tick is spaced.
         (int16 wordPos, uint8 bitPos) = position(tick / tickSpacing);
         uint256 mask = 1 << bitPos;
         self[wordPos] ^= mask;
@@ -43,7 +44,7 @@
             uint256 masked = self[wordPos] & mask;
 
             initialized = masked != 0;
-
+            // overflow / underflow is possible, but prevented externally by limiting both tickSpacing and tick
             next = intialized
                 ? (compressed + 1 + int24(uint24(BitMath.leastSignificantBit(masked) - bitPos))) * tickSpacing
                 : (compressed + 1 + int24(uint24(type(uint8).max - bitPos))) * tickSpacing;
