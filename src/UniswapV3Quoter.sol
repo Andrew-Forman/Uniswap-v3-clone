@@ -14,6 +14,5 @@ contract UniswapV3Quoter {
             uint256 amountOut,
             uint160 sqrtPriceX96After,
             int24 tickAfter
-        )
-    
+        
 }
