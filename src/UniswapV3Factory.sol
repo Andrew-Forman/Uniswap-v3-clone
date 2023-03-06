@@ -2,6 +2,11 @@
 pragma solidity ^0.8.17;
 
 contract UniswapV3Factory is IUniswapV3PoolDeployer {
+    PoolParameters public parameters;
+    mapping(address => mapping(address => mapping(uint24 => address)))
+        public pools;
+
+       
     mapping(uint24 => bool) public tickSpacings;
     constructor() {
         tickSpacings[10] = true;
