@@ -6,17 +6,17 @@ contract UniswapV3Factory is IUniswapV3PoolDeployer {
     mapping(address => mapping(address => mapping(uint24 => address)))
         public pools;
 
-    mapping(uint24 => bool) public tickSpacings;
+    mapping(uint24 => uint24) public fees;
 
     constructor() {
-        tickSpacings[10] = true;
-        tickSpacings[60] = true;
+        fees[500] = 10;
+        fees[3000] = 60;
     }
 
     function createPool(
         address tokenX,
         address tokenY,
-        uint24 tickSpacing
+        uint24 fee
     ) public returns (address pool) {
         if (tokenX == tokenY) revert TokenMustBeDiffernt();
         if (!tickSpacings[tickSpacing]) revert UnsupportedTickSpacing();
@@ -33,7 +33,8 @@ contract UniswapV3Factory is IUniswapV3PoolDeployer {
         factory: address(this),
         token0: tokenX,
         token1: tokenY,
-        tickSpacing: tickSpacing
+        tickSpacing: fees[fee],
+        fee: fee
     });
 
     pool = address(

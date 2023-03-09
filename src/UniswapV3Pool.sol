@@ -18,13 +18,17 @@ contract UniswapV3Pool is IUniswapV3Pool {
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
 
-
     int24 internal constant MIN_TICK = -887272;
     int24 internal constant MAX_TICK = -MIN_TICK;
 
-    // Pool tokens, immutable
+    // Pool parameters
     address public immutable token0;
     address public immutable token1;
+    uint24 public immutable tickSpacing;
+    uint24 public immutable fee;
+
+    uint256 public feeGrowthGlobal0X128;
+    uint256 public feeGrowthGlobal1X128;
 
     // Packing variables that are read together
     struct Slot0 {
@@ -33,6 +37,12 @@ contract UniswapV3Pool is IUniswapV3Pool {
     // Current tick
     int24 tick;
     }
+
+    uint256 amountRemainingLessFee = PRBMath.mulDiv(
+        amountRemaining,
+        1e6 - fee,
+        1e6
+    );
 
     struct SwapState {
         uint256 amountSpecifiedRemaining;
@@ -186,8 +196,21 @@ contract UniswapV3Pool is IUniswapV3Pool {
             amountSpecifiedRemaining: amountSpecified,
             amountCalculated: 0,
             sqrtPriceX96: slot0_.sqrtPriceX96,
-            tick: slot0_.tick
+            tick: slot0_.tick,
+            feeGrowthGlobalX123: zeroForO
+                ? feeGrowthGlobal0X128
+                : feeGrowthGlobal1X128,
+            liquidity: liquidity_
         });
+
+        // do not understand this
+        (...) = SwapMath.computeSwapStep(...);
+
+        state.feeGrowthGlobalX128 += PRBMath.mulDiv(
+            step.feeAmount,
+            FixedPoint128.Q128,
+            state.liquidity
+        );
         
         //really good bit of code
         while (state.amountSpecifiedRemaing > 0) {
