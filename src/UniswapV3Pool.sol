@@ -12,7 +12,7 @@ import "./lib/Tick.sol";
 import "./lib/TickBitmap.sol";
 import "./lib/TickMath.sol";
 
-contract UniswapV3Pool{
+contract UniswapV3Pool is IUniswapV3Pool {
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
     using Tick for mapping(int24 => Tick.Info);
@@ -81,15 +81,18 @@ contract UniswapV3Pool{
         address payer;
     }
 
-    constructor(
-        address token0_,
-        address token1_,
-        uint160 sqrtPriceX96,
-        int24 tick
-    ) {
-        token0 = token0_;
-        token1 = token1_;
+    constructor() {
+        (factory, token0, token1, tickSpacing) = IUniswapV3PoolDeployer(
+            msg.sender
+        ).parameters();
+    }
 
+
+    function initialize(uint160 sqrtPriceX96) public{
+        if (slot0.sqrtPriceX96 != 0) revert AlreadyInitialized();
+    
+        int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
+        
         slot0 = Slot0({sqrtPriceX96: sqrtPriceX96, tick: tick});
     }
 

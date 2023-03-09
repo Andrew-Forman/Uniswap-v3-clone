@@ -6,8 +6,8 @@ contract UniswapV3Factory is IUniswapV3PoolDeployer {
     mapping(address => mapping(address => mapping(uint24 => address)))
         public pools;
 
-       
     mapping(uint24 => bool) public tickSpacings;
+
     constructor() {
         tickSpacings[10] = true;
         tickSpacings[60] = true;
